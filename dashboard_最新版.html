@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>案件管理ダッシュボード</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --navy:#1c3568; --navym:#264b8c; --gold:#f0b429;
+  --bg:#eef2f8; --white:#ffffff; --alt:#f4f7fc; --bdr:#c8d4e8;
+  --txt:#1a2240; --muted:#7080a4;
+  --seikyu:#1d4ed8; --nyukin:#15803d; --warn:#b45309; --alert:#b91c1c;
+  --track:#dde3f0;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);
+  font-family:'Hiragino Sans','Meiryo','Yu Gothic',system-ui,sans-serif;
+  font-size:12px;max-width:480px;margin:0 auto;-webkit-text-size-adjust:100%;}
+.hdr{background:var(--navy);color:#fff;padding:9px 12px 10px;}
+.hdr-row{display:flex;justify-content:space-between;align-items:center;}
+.hdr h1{font-size:13px;font-weight:700;}
+.hdr-sub{font-size:9px;color:#99b4d8;margin-top:2px;}
+.hdr-badge{background:var(--navym);border:1px solid #4a6cb8;color:#cdd8f0;
+  font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px;}
+.gold-bar{height:3px;background:var(--gold);}
+.tabs{display:flex;background:var(--navy);border-top:1px solid #2d4f8c;}
+.tab-btn{flex:1;padding:8px 4px 7px;font-size:10px;font-weight:700;
+  color:#8aabcf;border:none;background:none;cursor:pointer;
+  border-bottom:2px solid transparent;letter-spacing:.05em;
+  -webkit-tap-highlight-color:transparent;}
+.tab-btn.act{color:#fff;border-bottom-color:var(--gold);background:rgba(255,255,255,.07);}
+.tab-pane{display:none;}
+.tab-pane.act{display:block;}
+.body{padding:10px 9px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:10px;}
+.kpi{background:var(--white);border:1px solid var(--bdr);border-top:3px solid var(--navy);
+  border-radius:3px;padding:7px 8px 6px;}
+.kl{font-size:8px;color:var(--muted);margin-bottom:3px;}
+.kv{font-size:16px;font-weight:800;color:var(--navy);line-height:1;}
+.kv .u{font-size:10px;font-weight:600;}
+.kv.warn{color:var(--warn);}
+.kv.ok{color:var(--nyukin);}
+.ks{font-size:8px;color:var(--muted);margin-top:2px;}
+.alert-box{background:#fff5f5;border:1px solid #fca5a5;border-left:4px solid var(--alert);
+  border-radius:3px;margin-bottom:10px;overflow:hidden;}
+.ab-head{background:#fef2f2;padding:5px 10px;display:flex;justify-content:space-between;
+  align-items:center;cursor:pointer;user-select:none;}
+.ab-title{font-size:11px;font-weight:700;color:var(--alert);}
+.ab-chevron{font-size:10px;color:var(--alert);transition:transform .2s;}
+.alert-box.open .ab-chevron{transform:rotate(180deg);}
+.ab-list{display:none;}
+.alert-box.open .ab-list{display:block;}
+.ab-item{display:flex;align-items:center;gap:6px;padding:4px 10px;
+  border-top:1px solid #fecaca;font-size:10px;}
+.ab-item:nth-child(odd){background:#fff8f8;}
+.ab-who{color:var(--muted);width:26px;flex-shrink:0;}
+.ab-gc{font-weight:700;color:var(--navym);width:44px;flex-shrink:0;}
+.ab-pj{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt);}
+.ab-reason{font-size:9px;color:var(--warn);flex-shrink:0;}
+.ab-amt{font-weight:800;color:var(--alert);flex-shrink:0;text-align:right;min-width:42px;}
+.sec{font-size:9px;font-weight:700;letter-spacing:.07em;color:var(--muted);
+  margin:10px 0 6px;border-left:3px solid var(--navy);padding-left:6px;}
+.chart-card{background:var(--white);border:1px solid var(--bdr);border-radius:3px;
+  padding:8px 8px 5px;}
+.chart-note{font-size:8px;color:var(--muted);margin-top:4px;text-align:right;}
+.list-wrap{background:var(--white);border:1px solid var(--bdr);border-radius:3px;
+  overflow:hidden;margin-bottom:6px;}
+.list-tbl{width:100%;border-collapse:collapse;font-size:10px;}
+.list-tbl th{background:var(--navy);color:#cdd8f0;padding:5px 4px 4px;
+  font-size:8px;font-weight:700;text-align:left;white-space:nowrap;}
+.list-tbl th.ra{text-align:right;}
+.list-tbl td{padding:5px 4px 4px;border-bottom:1px solid var(--bdr);vertical-align:middle;}
+.list-tbl tr:nth-child(even) td{background:var(--alt);}
+.list-tbl tr:hover td{background:#e8f0fb;}
+.lt-dot{width:16px;text-align:center;}
+.lt-who{color:var(--muted);white-space:nowrap;font-size:9px;}
+.lt-gc{font-weight:700;color:var(--navym);white-space:nowrap;}
+.lt-pj{max-width:115px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lt-pct{text-align:right;white-space:nowrap;}
+.lt-amt{text-align:right;font-weight:700;white-space:nowrap;}
+.lt-r{color:var(--alert);}
+.lt-o{color:var(--warn);}
+.lt-b{color:var(--seikyu);}
+.lt-x{color:var(--muted);}
+.pblock{background:var(--white);border:1px solid var(--bdr);border-radius:3px;
+  margin-bottom:6px;overflow:hidden;}
+.phead{background:var(--navy);color:#fff;display:flex;justify-content:space-between;
+  align-items:center;padding:6px 10px;cursor:pointer;user-select:none;
+  -webkit-tap-highlight-color:transparent;}
+.phead:active{opacity:.85;}
+.pname{font-size:12px;font-weight:700;}
+.pcnt{display:inline-block;font-size:8px;font-weight:700;padding:1px 6px;
+  border-radius:2px;margin-left:6px;background:var(--navym);color:#cdd8f0;
+  border:1px solid #4a6cb8;}
+.palert{display:inline-block;font-size:8px;font-weight:700;padding:1px 6px;
+  border-radius:2px;margin-left:4px;background:#7f1d1d;color:#fca5a5;
+  border:1px solid #ef4444;}
+.palert-o{background:#78350f;color:#fcd34d;border-color:#f59e0b;}
+.pchev{font-size:9px;color:#99b4d8;transition:transform .2s;flex-shrink:0;}
+.pblock.open .pchev{transform:rotate(180deg);}
+.psum{display:flex;background:#f0f4fb;border-bottom:1px solid var(--bdr);font-size:9px;}
+.pscel{flex:1;padding:4px 7px;border-right:1px solid var(--bdr);}
+.pscel:last-child{border-right:none;}
+.psl{color:var(--muted);}
+.psv{font-weight:700;color:var(--navy);font-size:10px;}
+.psv.warn{color:var(--warn);}
+.psv.alert{color:var(--alert);}
+.plist{display:none;}
+.pblock.open .plist{display:block;}
+.prow{border-bottom:1px solid var(--bdr);padding:5px 10px 6px;cursor:pointer;}
+.prow:last-child{border-bottom:none;}
+.prow:nth-child(even){background:var(--alt);}
+.prow:active{background:#dce8ff;}
+.r1{display:flex;align-items:center;gap:5px;margin-bottom:3px;}
+.adot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.ad-r{background:var(--alert);}
+.ad-o{background:var(--warn);}
+.ad-b{background:var(--seikyu);}
+.ad-g{background:var(--nyukin);}
+.ad-x{background:var(--muted);}
+.r-gc{font-size:10px;font-weight:700;color:var(--navym);flex-shrink:0;min-width:34px;}
+.r-pj{font-size:11px;font-weight:600;flex:1;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;}
+.r-no{font-size:8px;color:var(--muted);flex-shrink:0;}
+.sp{font-size:8px;font-weight:700;padding:1px 5px;border-radius:2px;flex-shrink:0;}
+.sp-act{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;}
+.sp-bef{background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;}
+.sp-don{background:#dcfce7;color:#166534;border:1px solid #86efac;}
+.sp-wat{background:#fef2f2;color:#991b1b;border:1px solid #fca5a5;}
+.r2{display:flex;align-items:center;gap:3px;padding-left:13px;}
+.bl{font-size:8px;color:var(--muted);width:10px;flex-shrink:0;text-align:center;}
+.bt{height:4px;background:var(--track);border-radius:2px;overflow:hidden;flex:1;}
+.bf{height:100%;border-radius:2px;max-width:100%;}
+.bf-s{background:var(--seikyu);}
+.bf-n{background:var(--nyukin);}
+.bf-w{background:var(--warn);}
+.bp{font-size:8px;width:28px;text-align:right;flex-shrink:0;font-weight:600;}
+.bp-s{color:var(--seikyu);}
+.bp-n{color:var(--nyukin);}
+.bp-w{color:var(--warn);}
+.bp-m{color:var(--muted);}
+.bsep{width:1px;height:8px;background:var(--bdr);flex-shrink:0;}
+.uc{font-size:10px;font-weight:700;flex-shrink:0;text-align:right;min-width:44px;padding-left:4px;}
+.uc-0{color:var(--muted);}
+.uc-w{color:var(--warn);}
+.uc-a{color:var(--alert);}
+.uc-m{color:var(--muted);}
+.month-hdr{background:var(--navy);color:#fff;border-radius:3px;
+  padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+.mh-main{font-size:15px;font-weight:800;}
+.mh-sub{font-size:9px;color:#99b4d8;}
+.mh-badge{background:var(--gold);color:var(--navy);font-size:9px;font-weight:800;
+  padding:2px 8px;border-radius:2px;}
+.kpi3{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px;}
+.trend-wrap{background:var(--white);border:1px solid var(--bdr);border-radius:3px;
+  overflow:hidden;margin-bottom:10px;}
+.trend-tbl{width:100%;border-collapse:collapse;font-size:10px;}
+.trend-tbl th{background:var(--navy);color:#cdd8f0;padding:5px 8px 4px;font-size:8px;font-weight:700;}
+.trend-tbl th:first-child{text-align:left;}
+.trend-tbl th:not(:first-child){text-align:right;}
+.trend-tbl td{padding:5px 8px 4px;border-bottom:1px solid var(--bdr);}
+.trend-tbl td:first-child{font-weight:700;color:var(--txt);}
+.trend-tbl td:not(:first-child){text-align:right;}
+.trend-tbl tr.latest td{background:#fffbeb;font-weight:700;}
+.trend-tbl tr.latest td:first-child{color:var(--gold);background:#1c3568;}
+.t-r{color:var(--alert);}
+.t-g{color:var(--nyukin);}
+.t-n{color:var(--navy);}
+.t-w{color:var(--warn);}
+.t-gold{color:var(--gold);}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:6px;}
+.stat-card{background:var(--white);border:1px solid var(--bdr);border-radius:3px;padding:8px 10px 7px;}
+.stat-v{font-size:20px;font-weight:800;color:var(--navy);line-height:1;}
+.stat-v .u{font-size:11px;font-weight:600;}
+.stat-v.r{color:var(--alert);}
+.stat-v.o{color:var(--warn);}
+.stat-v.g{color:var(--nyukin);}
+.stat-l{font-size:8px;color:var(--muted);margin-top:3px;}
+.stat-s{font-size:8px;color:var(--muted);margin-top:1px;}
+.footer{text-align:center;font-size:9px;color:var(--muted);
+  padding:12px 0 16px;border-top:1px solid var(--bdr);margin-top:4px;line-height:1.9;}
+.tagline{color:var(--navy);font-weight:700;font-size:10px;}
+
+/* ── モーダル ── */
+#modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.5);z-index:200;
+  -webkit-tap-highlight-color:transparent;
+}
+#modal{
+  display:none;position:fixed;bottom:0;left:50%;
+  transform:translateX(-50%);
+  width:100%;max-width:480px;
+  background:var(--white);border-radius:14px 14px 0 0;
+  z-index:201;max-height:88vh;overflow-y:auto;
+  transition:transform .25s ease;
+  padding-bottom:env(safe-area-inset-bottom,0);
+}
+#modal.open{display:block;}
+#modal-overlay.open{display:block;}
+.md-handle{
+  width:38px;height:4px;background:#d1d9e8;
+  border-radius:2px;margin:10px auto 0;
+}
+.md-hdr{
+  padding:10px 14px 8px;
+  border-bottom:1px solid var(--bdr);
+  position:sticky;top:0;background:var(--white);z-index:1;
+}
+.md-hdr-row{display:flex;align-items:flex-start;gap:8px;}
+.md-badges{display:flex;flex-wrap:wrap;gap:4px;flex:1;}
+.md-badge-alv{
+  font-size:9px;font-weight:800;padding:2px 8px;border-radius:3px;
+}
+.md-badge-st{
+  font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;
+  background:#dbeafe;color:#1e40af;border:1px solid #93c5fd;
+}
+.md-badge-st.done{background:#fef2f2;color:#991b1b;border-color:#fca5a5;}
+.md-badge-gc{
+  font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;
+  background:#f0f4fb;color:var(--navym);border:1px solid var(--bdr);
+}
+.md-badge-who{
+  font-size:9px;padding:2px 7px;border-radius:3px;
+  background:#f0f4fb;color:var(--muted);border:1px solid var(--bdr);
+}
+.md-close{
+  width:26px;height:26px;border-radius:50%;
+  background:#f0f4fb;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;color:var(--muted);flex-shrink:0;
+}
+.md-title{
+  font-size:12px;font-weight:700;color:var(--txt);
+  padding:6px 14px 0;line-height:1.4;
+}
+.md-no{font-size:9px;color:var(--muted);padding:2px 14px 8px;}
+.md-body{padding:0 14px 14px;}
+.md-sec{
+  font-size:8px;font-weight:700;letter-spacing:.07em;
+  color:var(--muted);margin:12px 0 5px;
+  border-left:3px solid var(--navy);padding-left:6px;
+}
+.md-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.md-grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
+.md-cell{
+  background:#f6f9ff;border:1px solid var(--bdr);
+  border-radius:4px;padding:6px 8px;
+}
+.md-cl{font-size:8px;color:var(--muted);margin-bottom:2px;}
+.md-cv{font-size:12px;font-weight:700;color:var(--navy);}
+.md-cv.r{color:var(--alert);}
+.md-cv.o{color:var(--warn);}
+.md-cv.g{color:var(--nyukin);}
+.md-cv.m{color:var(--muted);}
+.md-cv.sm{font-size:10px;}
+.md-bar-wrap{margin:8px 0 4px;}
+.md-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.md-bar-lbl{font-size:8px;color:var(--muted);width:28px;flex-shrink:0;}
+.md-bar-bg{flex:1;height:8px;background:var(--track);border-radius:4px;overflow:hidden;}
+.md-bar-fill{height:100%;border-radius:4px;}
+.md-bar-pct{font-size:10px;font-weight:700;width:38px;text-align:right;flex-shrink:0;}
+.md-info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
+.md-info-row{
+  background:#f6f9ff;border:1px solid var(--bdr);
+  border-radius:4px;padding:5px 8px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.md-il{font-size:8px;color:var(--muted);}
+.md-iv{font-size:10px;font-weight:700;color:var(--txt);}
+.md-map-btn{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:10px;margin-top:12px;
+  background:var(--navy);color:#fff;
+  border:none;border-radius:6px;cursor:pointer;
+  font-size:12px;font-weight:700;text-decoration:none;
+  -webkit-tap-highlight-color:transparent;
+}
+.md-map-btn:active{opacity:.85;}
+.md-map-icon{font-size:16px;}
+.md-divider{height:1px;background:var(--bdr);margin:10px 0;}
+</style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<div class="hdr">
+  <div class="hdr-row">
+    <div>
+      <h1>案件管理ダッシュボード</h1>
+      <div class="hdr-sub">更新日：2026年5月1日</div>
+    </div>
+    <div class="hdr-badge">建設業 Ver.4.1</div>
+  </div>
+</div>
+<div class="gold-bar"></div>
+
+<!-- タブ -->
+<div class="tabs">
+  <button class="tab-btn act" onclick="showTab('t1',this)">全体</button>
+  <button class="tab-btn" onclick="showTab('t2',this)">担当者別</button>
+  <button class="tab-btn" onclick="showTab('t3',this)">最新月</button>
+</div>
+
+<!-- ══ Tab1: 全体 ══ -->
+<div class="tab-pane act" id="t1">
+<div class="body">
+
+<div class="kpi-grid">
+  <div class="kpi">
+    <div class="kl">稼働案件</div>
+    <div class="kv">89<span class="u">件</span></div>
+    <div class="ks">未着工20含む</div>
+  </div>
+  <div class="kpi">
+    <div class="kl">受注残高</div>
+    <div class="kv warn">3.4億</div>
+    <div class="ks">未請求</div>
+  </div>
+  <div class="kpi">
+    <div class="kl">請求残高</div>
+    <div class="kv warn">1,056万</div>
+    <div class="ks">未入金</div>
+  </div>
+  <div class="kpi">
+    <div class="kl">入金率</div>
+    <div class="kv ok">100.3<span class="u">%</span></div>
+    <div class="ks">25/05〜26/03</div>
+  </div>
+</div>
+
+<div class="alert-box open" id="ab">
+  <div class="ab-head" onclick="toggle('ab')">
+    <span class="ab-title">⚠ 要確認 4件　／　注意 10件</span>
+    <span class="ab-chevron">▼</span>
+  </div>
+  <div class="ab-list">
+    <div class="ab-item"><span class="ab-who">山田</span><span class="ab-gc">○末</span><span class="ab-pj">●●工事 新築PJ</span><span class="ab-reason">未回収</span><span class="ab-amt">149万</span></div>
+    <div class="ab-item"><span class="ab-who">田中</span><span class="ab-gc">○○エル</span><span class="ab-pj">●●工事 新築PJ</span><span class="ab-reason">未回収</span><span class="ab-amt">640万</span></div>
+    <div class="ab-item"><span class="ab-who">田中</span><span class="ab-gc">○○エル</span><span class="ab-pj">●●工事 新築PJ</span><span class="ab-reason">未回収</span><span class="ab-amt">164万</span></div>
+    <div class="ab-item"><span class="ab-who">鈴木</span><span class="ab-gc">○和</span><span class="ab-pj">●●工事 追加PJ</span><span class="ab-reason">完了・未請求</span><span class="ab-amt">308万</span></div>
+    <div style="border-top:1px dashed #fca5a5;"></div>
+    <div class="ab-item" style="background:#fffbeb;"><span class="ab-who" style="color:var(--warn)">田中</span><span class="ab-gc" style="color:var(--warn)">○杉</span><span class="ab-pj">●●工事 整備PJ</span><span class="ab-reason" style="color:var(--muted)">未回収</span><span class="ab-amt" style="color:var(--warn)">40万</span></div>
+    <div class="ab-item" style="background:#fffbeb;"><span class="ab-who" style="color:var(--warn)">鈴木</span><span class="ab-gc" style="color:var(--warn)">○栄</span><span class="ab-pj">●●工事PJ</span><span class="ab-reason" style="color:var(--muted)">未回収</span><span class="ab-amt" style="color:var(--warn)">14万</span></div>
+    <div class="ab-item" style="background:#fffbeb;"><span class="ab-who" style="color:var(--warn)">田中</span><span class="ab-gc" style="color:var(--warn)">○○エル</span><span class="ab-pj">●●工事 新築PJ</span><span class="ab-reason" style="color:var(--muted)">未回収</span><span class="ab-amt" style="color:var(--warn)">16万</span></div>
+    <div class="ab-item" style="background:#fffbeb;"><span class="ab-who" style="color:var(--warn)">田中</span><span class="ab-gc" style="color:var(--warn)">○ツト</span><span class="ab-pj">●●マンション 新築PJ</span><span class="ab-reason" style="color:var(--muted)">未回収</span><span class="ab-amt" style="color:var(--warn)">27万</span></div>
+    <div class="ab-item" style="background:#fffbeb;"><span class="ab-who" style="color:var(--warn)">佐藤</span><span class="ab-gc" style="color:var(--warn)">○和</span><span class="ab-pj">●●工場 新築PJ</span><span class="ab-reason" style="color:var(--muted)">実施中・未請求</span><span class="ab-amt" style="color:var(--warn)">398万</span></div>
+    <div class="ab-item" style="background:#fffbeb;"><span class="ab-who" style="color:var(--warn)">佐藤</span><span class="ab-gc" style="color:var(--warn)">○栄</span><span class="ab-pj">●●工事 新築PJ</span><span class="ab-reason" style="color:var(--muted)">実施中・未請求</span><span class="ab-amt" style="color:var(--warn)">1,155万</span></div>
+    <div class="ab-item" style="background:#fffbeb;"><span class="ab-who" style="color:var(--warn)">田中</span><span class="ab-gc" style="color:var(--warn)">○○エル</span><span class="ab-pj">●●工事 新築PJ</span><span class="ab-reason" style="color:var(--muted)">実施中・未請求</span><span class="ab-amt" style="color:var(--warn)">2,134万</span></div>
+    <div class="ab-item" style="background:#fffbeb;"><span class="ab-who" style="color:var(--warn)">田中</span><span class="ab-gc" style="color:var(--warn)">○阪</span><span class="ab-pj">●●工事 追加PJ</span><span class="ab-reason" style="color:var(--muted)">実施中・未請求</span><span class="ab-amt" style="color:var(--warn)">402万</span></div>
+    <div class="ab-item" style="background:#fffbeb;"><span class="ab-who" style="color:var(--warn)">田中</span><span class="ab-gc" style="color:var(--warn)">○ワミ</span><span class="ab-pj">●●工事PJ</span><span class="ab-reason" style="color:var(--muted)">実施中・未請求</span><span class="ab-amt" style="color:var(--warn)">251万</span></div>
+    <div class="ab-item" style="background:#fffbeb;"><span class="ab-who" style="color:var(--warn)">田中</span><span class="ab-gc" style="color:var(--warn)">○○建設</span><span class="ab-pj">●●マンション 新築PJ</span><span class="ab-reason" style="color:var(--muted)">実施中・未請求</span><span class="ab-amt" style="color:var(--warn)">242万</span></div>
+  </div>
+</div>
+
+<div class="sec">月次 請求 / 入金 / 入金率（2025/05〜2026/03）</div>
+<div class="chart-card">
+  <canvas id="chart" height="175"></canvas>
+  <div class="chart-note">棒=金額（万円）　折れ線=入金率（右軸 %）</div>
+</div>
+
+<div class="sec">全案件一覧 — 89件　<span style="font-weight:400;font-size:8px;">（行をタップ→詳細）</span></div>
+<div class="list-wrap">
+  <table class="list-tbl">
+    <thead>
+      <tr>
+        <th class="lt-dot"></th>
+        <th>担当</th><th>GC</th><th>プロジェクト名</th>
+        <th>状態</th><th class="ra">請求%</th><th class="ra">未回収</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr onclick="openModal(6)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-r"></div></td>
+        <td class="lt-who">山田</td><td class="lt-gc lt-r">○末</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-r">28.0%</td>
+        <td class="lt-amt lt-r">149万</td>
+      </tr>
+      <tr onclick="openModal(11)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-r"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-r">○○エル</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-r">93.1%</td>
+        <td class="lt-amt lt-r">640万</td>
+      </tr>
+      <tr onclick="openModal(46)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-r"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-r">○○エル</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-r">100.0%</td>
+        <td class="lt-amt lt-r">164万</td>
+      </tr>
+      <tr onclick="openModal(78)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-r"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-r">○和</td>
+        <td class="lt-pj">●●工事 追加PJ</td>
+        <td><span class="sp sp-wat">完了</span></td>
+        <td class="lt-pct lt-r">0%⚠</td>
+        <td class="lt-amt lt-r">0万</td>
+      </tr>
+      <tr onclick="openModal(63)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-o"></div></td>
+        <td class="lt-who">佐藤</td><td class="lt-gc lt-o">○和</td>
+        <td class="lt-pj">●●工場 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-o">—</td>
+        <td class="lt-amt lt-o">0万</td>
+      </tr>
+      <tr onclick="openModal(64)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-o"></div></td>
+        <td class="lt-who">佐藤</td><td class="lt-gc lt-o">○栄</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-o">—</td>
+        <td class="lt-amt lt-o">0万</td>
+      </tr>
+      <tr onclick="openModal(13)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-o"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-o">○杉</td>
+        <td class="lt-pj">●●工事 整備PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-o">100.0%</td>
+        <td class="lt-amt lt-o">40万</td>
+      </tr>
+      <tr onclick="openModal(45)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-o"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-o">○○エル</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-o">100.0%</td>
+        <td class="lt-amt lt-o">16万</td>
+      </tr>
+      <tr onclick="openModal(58)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-o"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-o">○ツト</td>
+        <td class="lt-pj">●●マンション 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-o">100.0%</td>
+        <td class="lt-amt lt-o">27万</td>
+      </tr>
+      <tr onclick="openModal(65)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-o"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-o">○○エル</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-o">—</td>
+        <td class="lt-amt lt-o">0万</td>
+      </tr>
+      <tr onclick="openModal(73)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-o"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-o">○阪</td>
+        <td class="lt-pj">●●工事 追加PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-o">—</td>
+        <td class="lt-amt lt-o">0万</td>
+      </tr>
+      <tr onclick="openModal(77)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-o"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-o">○ワミ</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-o">—</td>
+        <td class="lt-amt lt-o">0万</td>
+      </tr>
+      <tr onclick="openModal(83)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-o"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-o">○○建設</td>
+        <td class="lt-pj">●●マンション 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-o">—</td>
+        <td class="lt-amt lt-o">0万</td>
+      </tr>
+      <tr onclick="openModal(34)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-o"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-o">○栄</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-o">117.3%</td>
+        <td class="lt-amt lt-o">14万</td>
+      </tr>
+      <tr onclick="openModal(7)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">山田</td><td class="lt-gc lt-b">○末</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">29.5%</td>
+        <td class="lt-amt lt-b">6万</td>
+      </tr>
+      <tr onclick="openModal(47)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">山田</td><td class="lt-gc lt-b">○野</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">4,070円</td>
+      </tr>
+      <tr onclick="openModal(30)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○エル</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">2万</td>
+      </tr>
+      <tr onclick="openModal(32)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○高</td>
+        <td class="lt-pj">●●工場PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">98.9%</td>
+        <td class="lt-amt lt-b">6万</td>
+      </tr>
+      <tr onclick="openModal(56)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○エル</td>
+        <td class="lt-pj">●●ホテル 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">2万</td>
+      </tr>
+      <tr onclick="openModal(48)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-b">○栄</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">657円</td>
+      </tr>
+      <tr onclick="openModal(4)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">佐藤</td><td class="lt-gc lt-b">○望</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(20)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">佐藤</td><td class="lt-gc lt-b">○望</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">92.9%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(21)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">佐藤</td><td class="lt-gc lt-b">○望</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">92.6%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(23)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">佐藤</td><td class="lt-gc lt-b">○望</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(41)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">佐藤</td><td class="lt-gc lt-b">○松</td>
+        <td class="lt-pj">●●ビル 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(42)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">佐藤</td><td class="lt-gc lt-b">○松</td>
+        <td class="lt-pj">●●ビル 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(0)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">山田</td><td class="lt-gc lt-b">○野</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">39.7%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(9)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">山田</td><td class="lt-gc lt-b">○○ディア</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">32.1%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(49)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">山田</td><td class="lt-gc lt-b">○末</td>
+        <td class="lt-pj">●●ビル 追加PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(61)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">山田</td><td class="lt-gc lt-b">○栄</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(2)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○住友</td>
+        <td class="lt-pj">●●学校 改装PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">74.2%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(5)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○商</td>
+        <td class="lt-pj">●●工事 整備PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(8)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○ディア</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">55.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(10)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○ディア</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(12)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○イズ</td>
+        <td class="lt-pj">●●ビルPJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">84.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(15)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○瀬</td>
+        <td class="lt-pj">●●店舗 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">79.8%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(16)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○エル</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(17)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○ツト</td>
+        <td class="lt-pj">●●マンション 外構PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(19)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○建設</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">42.3%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(22)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○ディア</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(24)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○ディア</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(25)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○ワミ</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(26)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○ファ</td>
+        <td class="lt-pj">●●マンション 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(29)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○杉</td>
+        <td class="lt-pj">●●工事 整備PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(31)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○エル</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(35)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○工業</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">66.7%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(36)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○りホーム</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">84.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(38)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○商</td>
+        <td class="lt-pj">●●工事 整備PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">45.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(39)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○ワミ</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(40)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○ワミ</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(43)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○杉</td>
+        <td class="lt-pj">●●施設 整備PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(50)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○阪</td>
+        <td class="lt-pj">●●工場 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(51)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○阪</td>
+        <td class="lt-pj">●●工場 追加PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(52)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○阪</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(53)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○○エル</td>
+        <td class="lt-pj">●●ホテル 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(54)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○イズ</td>
+        <td class="lt-pj">●●工事 増改築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(55)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○杉</td>
+        <td class="lt-pj">●●倉庫 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(57)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○イズ</td>
+        <td class="lt-pj">●●工事 増改築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(59)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○ワミ</td>
+        <td class="lt-pj">●●共同住宅PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(60)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-b">○高</td>
+        <td class="lt-pj">●●工場PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(1)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-b">○野</td>
+        <td class="lt-pj">●●ビル 追加PJ</td>
+        <td><span class="sp sp-wat">完了</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(3)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-b">○○ファ</td>
+        <td class="lt-pj">●●マンション 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">33.7%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(14)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-b">○松</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">61.3%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(18)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-b">○野</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(27)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-b">○組</td>
+        <td class="lt-pj">●●店舗 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(28)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-b">○栄</td>
+        <td class="lt-pj">●●工場 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(33)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-b">○野</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(37)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-b">○○ファ</td>
+        <td class="lt-pj">●●マンション 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(44)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-b"></div></td>
+        <td class="lt-who">鈴木</td><td class="lt-gc lt-b">○和</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-b">100.0%</td>
+        <td class="lt-amt lt-b">0万</td>
+      </tr>
+      <tr onclick="openModal(62)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">佐藤</td><td class="lt-gc lt-x">○野</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-bef">着工前</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契253万</td>
+      </tr>
+      <tr onclick="openModal(68)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">佐藤</td><td class="lt-gc lt-x">○望</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契25万</td>
+      </tr>
+      <tr onclick="openModal(88)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">山田</td><td class="lt-gc lt-x">○野</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契77万</td>
+      </tr>
+      <tr onclick="openModal(66)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○○りホーム</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契182万</td>
+      </tr>
+      <tr onclick="openModal(67)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○工業</td>
+        <td class="lt-pj">●●共同住宅 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契100万</td>
+      </tr>
+      <tr onclick="openModal(69)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○○ひろ</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契19万</td>
+      </tr>
+      <tr onclick="openModal(70)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○○ひろ</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契11万</td>
+      </tr>
+      <tr onclick="openModal(71)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○ワミ</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契165万</td>
+      </tr>
+      <tr onclick="openModal(72)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○○エル</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契10万</td>
+      </tr>
+      <tr onclick="openModal(74)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○ワミ</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契21万</td>
+      </tr>
+      <tr onclick="openModal(75)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○都</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契20万</td>
+      </tr>
+      <tr onclick="openModal(76)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○高</td>
+        <td class="lt-pj">●●工場PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契77万</td>
+      </tr>
+      <tr onclick="openModal(79)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○○エル</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契6万</td>
+      </tr>
+      <tr onclick="openModal(80)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○○ディア</td>
+        <td class="lt-pj">●●工事PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契6万</td>
+      </tr>
+      <tr onclick="openModal(81)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○杉</td>
+        <td class="lt-pj">●●工事 整備PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契8万</td>
+      </tr>
+      <tr onclick="openModal(82)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○杉</td>
+        <td class="lt-pj">●●工事 整備PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契99万</td>
+      </tr>
+      <tr onclick="openModal(84)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○○建設</td>
+        <td class="lt-pj">●●マンション 新築PJ</td>
+        <td><span class="sp sp-bef">着工前</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契281万</td>
+      </tr>
+      <tr onclick="openModal(85)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○○エル</td>
+        <td class="lt-pj">●●工事 新築PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契10万</td>
+      </tr>
+      <tr onclick="openModal(86)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○○建設</td>
+        <td class="lt-pj">●●工事 追加PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契11万</td>
+      </tr>
+      <tr onclick="openModal(87)" style="cursor:pointer;">
+        <td class="lt-dot"><div class="adot ad-x"></div></td>
+        <td class="lt-who">田中</td><td class="lt-gc lt-x">○○りホーム</td>
+        <td class="lt-pj">●●工事 追加PJ</td>
+        <td><span class="sp sp-act">実施中</span></td>
+        <td class="lt-pct lt-x">—</td>
+        <td class="lt-amt lt-x">契20万</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div>
+</div>
+
+<!-- ══ Tab2: 担当者別 ══ -->
+<div class="tab-pane" id="t2">
+<div class="body">
+<div class="sec">担当者別 稼働案件　<span style="font-weight:400;font-size:8px;">（行をタップ→詳細）</span></div>
+<div class="pblock open" id="pa">
+  <div class="phead" onclick="toggle('pa')">
+    <div><span class="pname">山田</span><span class="pcnt">8件</span><span class="palert">⚠ 1件</span></div>
+    <span class="pchev">▼</span>
+  </div>
+  <div class="psum">
+    <div class="pscel"><div class="psl">契約合計</div><div class="psv">1.8億</div></div>
+    <div class="pscel"><div class="psl">請求累計</div><div class="psv">6,570万</div></div>
+    <div class="pscel"><div class="psl">入金累計</div><div class="psv">6,414万</div></div>
+    <div class="pscel"><div class="psl">未回収</div><div class="psv alert">156万</div></div>
+  </div>
+  <div class="plist">
+    <div class="prow" onclick="openModal(6)">
+      <div class="r1"><div class="adot ad-r"></div><span class="r-gc">○末</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.107</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:28.0%"></div></div><span class="bp bp-s">28.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:25.4%"></div></div><span class="bp bp-w">25.4%</span><span class="uc uc-a">未 149万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(7)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○末</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.124</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:29.5%"></div></div><span class="bp bp-s">29.5%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:29.5%"></div></div><span class="bp bp-n">29.5%</span><span class="uc uc-0">未 6万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(47)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○野</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.297</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 4,070円</span></div>
+    </div>
+    <div class="prow" onclick="openModal(0)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○野</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.268</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:39.7%"></div></div><span class="bp bp-s">39.7%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:39.7%"></div></div><span class="bp bp-n">39.7%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(9)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○ディア</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.262</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:32.1%"></div></div><span class="bp bp-s">32.1%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:32.1%"></div></div><span class="bp bp-n">32.1%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(49)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○末</span><span class="r-pj">●●ビル 追加PJ</span><span class="r-no">No.282</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(61)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○栄</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.25</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(88)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○野</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.441</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 77万</span></div>
+    </div>
+  </div>
+</div>
+<div class="pblock" id="pb">
+  <div class="phead" onclick="toggle('pb')">
+    <div><span class="pname">鈴木</span><span class="pcnt">12件</span><span class="palert">⚠ 1件</span><span class="palert palert-o">△ 1件</span></div>
+    <span class="pchev">▼</span>
+  </div>
+  <div class="psum">
+    <div class="pscel"><div class="psl">契約合計</div><div class="psv">3.9億</div></div>
+    <div class="pscel"><div class="psl">請求累計</div><div class="psv">2.8億</div></div>
+    <div class="pscel"><div class="psl">入金累計</div><div class="psv">2.8億</div></div>
+    <div class="pscel"><div class="psl">未回収</div><div class="psv warn">14万</div></div>
+  </div>
+  <div class="plist">
+    <div class="prow" onclick="openModal(78)">
+      <div class="r1"><div class="adot ad-r"></div><span class="r-gc">○和</span><span class="r-pj">●●工事 追加PJ</span><span class="r-no">No.412</span><span class="sp sp-wat">工事完了</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp" style="color:var(--alert)">0%⚠</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-a">契 308万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(34)">
+      <div class="r1"><div class="adot ad-o"></div><span class="r-gc">○栄</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.326</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:100.0%"></div></div><span class="bp bp-w">100.0%</span><span class="uc uc-w">未 14万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(48)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○栄</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.16</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 657円</span></div>
+    </div>
+    <div class="prow" onclick="openModal(1)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○野</span><span class="r-pj">●●ビル 追加PJ</span><span class="r-no">No.411</span><span class="sp sp-wat">工事完了</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(3)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○ファ</span><span class="r-pj">●●マンション 新築PJ</span><span class="r-no">No.250</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:33.7%"></div></div><span class="bp bp-s">33.7%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:33.7%"></div></div><span class="bp bp-n">33.7%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(14)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○松</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.160</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:61.3%"></div></div><span class="bp bp-s">61.3%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:61.3%"></div></div><span class="bp bp-n">61.3%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(18)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○野</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.383</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(27)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○組</span><span class="r-pj">●●店舗 新築PJ</span><span class="r-no">No.274</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(28)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○栄</span><span class="r-pj">●●工場 新築PJ</span><span class="r-no">No.253</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(33)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○野</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.301</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(37)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○ファ</span><span class="r-pj">●●マンション 新築PJ</span><span class="r-no">No.140</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(44)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○和</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.103</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+  </div>
+</div>
+<div class="pblock" id="pc">
+  <div class="phead" onclick="toggle('pc')">
+    <div><span class="pname">田中</span><span class="pcnt">59件</span><span class="palert">⚠ 2件</span><span class="palert palert-o">△ 7件</span></div>
+    <span class="pchev">▼</span>
+  </div>
+  <div class="psum">
+    <div class="pscel"><div class="psl">契約合計</div><div class="psv">4.7億</div></div>
+    <div class="pscel"><div class="psl">請求累計</div><div class="psv">3.6億</div></div>
+    <div class="pscel"><div class="psl">入金累計</div><div class="psv">3.6億</div></div>
+    <div class="pscel"><div class="psl">未回収</div><div class="psv alert">899万</div></div>
+  </div>
+  <div class="plist">
+    <div class="prow" onclick="openModal(11)">
+      <div class="r1"><div class="adot ad-r"></div><span class="r-gc">○○エル</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.66</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:93.1%"></div></div><span class="bp bp-s">93.1%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:83.8%"></div></div><span class="bp bp-w">83.8%</span><span class="uc uc-a">未 640万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(46)">
+      <div class="r1"><div class="adot ad-r"></div><span class="r-gc">○○エル</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.65</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:91.8%"></div></div><span class="bp bp-w">91.8%</span><span class="uc uc-a">未 164万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(13)">
+      <div class="r1"><div class="adot ad-o"></div><span class="r-gc">○杉</span><span class="r-pj">●●工事 整備PJ</span><span class="r-no">No.116</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:93.8%"></div></div><span class="bp bp-w">93.8%</span><span class="uc uc-w">未 40万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(45)">
+      <div class="r1"><div class="adot ad-o"></div><span class="r-gc">○○エル</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.15</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:99.5%"></div></div><span class="bp bp-w">99.5%</span><span class="uc uc-w">未 16万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(58)">
+      <div class="r1"><div class="adot ad-o"></div><span class="r-gc">○ツト</span><span class="r-pj">●●マンション 新築PJ</span><span class="r-no">No.13</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:98.8%"></div></div><span class="bp bp-w">98.8%</span><span class="uc uc-w">未 27万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(65)">
+      <div class="r1"><div class="adot ad-o"></div><span class="r-gc">○○エル</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.320</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:0.0%"></div></div><span class="bp bp-s">0.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:0.0%"></div></div><span class="bp bp-w">0.0%</span><span class="uc uc-w">契 2,134万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(73)">
+      <div class="r1"><div class="adot ad-o"></div><span class="r-gc">○阪</span><span class="r-pj">●●工事 追加PJ</span><span class="r-no">No.396</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:0.0%"></div></div><span class="bp bp-s">0.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:0.0%"></div></div><span class="bp bp-w">0.0%</span><span class="uc uc-w">契 402万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(77)">
+      <div class="r1"><div class="adot ad-o"></div><span class="r-gc">○ワミ</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.406</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:0.0%"></div></div><span class="bp bp-s">0.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:0.0%"></div></div><span class="bp bp-w">0.0%</span><span class="uc uc-w">契 251万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(83)">
+      <div class="r1"><div class="adot ad-o"></div><span class="r-gc">○○建設</span><span class="r-pj">●●マンション 新築PJ</span><span class="r-no">No.432</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:0.0%"></div></div><span class="bp bp-s">0.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:0.0%"></div></div><span class="bp bp-w">0.0%</span><span class="uc uc-w">契 242万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(30)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○エル</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.343</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 2万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(32)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○高</span><span class="r-pj">●●工場PJ</span><span class="r-no">No.209</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:98.9%"></div></div><span class="bp bp-s">98.9%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:98.9%"></div></div><span class="bp bp-n">98.9%</span><span class="uc uc-0">未 6万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(56)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○エル</span><span class="r-pj">●●ホテル 新築PJ</span><span class="r-no">No.275</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 2万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(2)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○住友</span><span class="r-pj">●●学校 改装PJ</span><span class="r-no">No.98</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:74.2%"></div></div><span class="bp bp-s">74.2%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:74.2%"></div></div><span class="bp bp-n">74.2%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(5)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○商</span><span class="r-pj">●●工事 整備PJ</span><span class="r-no">No.400</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(8)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○ディア</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.164</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:55.0%"></div></div><span class="bp bp-s">55.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:55.0%"></div></div><span class="bp bp-n">55.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(10)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○ディア</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.386</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(12)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○イズ</span><span class="r-pj">●●ビルPJ</span><span class="r-no">No.109</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:84.0%"></div></div><span class="bp bp-s">84.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:84.0%"></div></div><span class="bp bp-n">84.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(15)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○瀬</span><span class="r-pj">●●店舗 新築PJ</span><span class="r-no">No.247</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:79.8%"></div></div><span class="bp bp-s">79.8%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:79.8%"></div></div><span class="bp bp-n">79.8%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(16)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○エル</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.357</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(17)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○ツト</span><span class="r-pj">●●マンション 外構PJ</span><span class="r-no">No.327</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(19)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○建設</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.361</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:42.3%"></div></div><span class="bp bp-s">42.3%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:42.3%"></div></div><span class="bp bp-n">42.3%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(22)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○ディア</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.348</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(24)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○ディア</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.370</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(25)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○ワミ</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.371</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(26)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○ファ</span><span class="r-pj">●●マンション 新築PJ</span><span class="r-no">No.375</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(29)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○杉</span><span class="r-pj">●●工事 整備PJ</span><span class="r-no">No.321</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(31)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○エル</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.344</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(35)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○工業</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.317</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:66.7%"></div></div><span class="bp bp-s">66.7%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:66.7%"></div></div><span class="bp bp-n">66.7%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(36)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○りホーム</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.244</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:84.0%"></div></div><span class="bp bp-s">84.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:84.0%"></div></div><span class="bp bp-n">84.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(38)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○商</span><span class="r-pj">●●工事 整備PJ</span><span class="r-no">No.193</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:45.0%"></div></div><span class="bp bp-s">45.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:45.0%"></div></div><span class="bp bp-n">45.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(39)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○ワミ</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.316</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(40)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○ワミ</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.335</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(43)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○杉</span><span class="r-pj">●●施設 整備PJ</span><span class="r-no">No.156</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(50)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○阪</span><span class="r-pj">●●工場 新築PJ</span><span class="r-no">No.108</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(51)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○阪</span><span class="r-pj">●●工場 追加PJ</span><span class="r-no">No.272</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(52)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○阪</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.289</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(53)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○○エル</span><span class="r-pj">●●ホテル 新築PJ</span><span class="r-no">No.18</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(54)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○イズ</span><span class="r-pj">●●工事 増改築PJ</span><span class="r-no">No.228</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(55)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○杉</span><span class="r-pj">●●倉庫 新築PJ</span><span class="r-no">No.270</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(57)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○イズ</span><span class="r-pj">●●工事 増改築PJ</span><span class="r-no">No.304</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(59)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○ワミ</span><span class="r-pj">●●共同住宅PJ</span><span class="r-no">No.306</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(60)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○高</span><span class="r-pj">●●工場PJ</span><span class="r-no">No.310</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(66)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○○りホーム</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.351</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 182万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(67)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○工業</span><span class="r-pj">●●共同住宅 新築PJ</span><span class="r-no">No.364</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 100万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(69)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○○ひろ</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.379</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 19万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(70)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○○ひろ</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.390</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 11万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(71)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○ワミ</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.391</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 165万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(72)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○○エル</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.392</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 10万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(74)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○ワミ</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.401</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 21万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(75)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○都</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.403</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 20万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(76)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○高</span><span class="r-pj">●●工場PJ</span><span class="r-no">No.405</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 77万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(79)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○○エル</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.416</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 6万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(80)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○○ディア</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.420</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 6万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(81)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○杉</span><span class="r-pj">●●工事 整備PJ</span><span class="r-no">No.429</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 8万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(82)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○杉</span><span class="r-pj">●●工事 整備PJ</span><span class="r-no">No.431</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 99万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(84)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○○建設</span><span class="r-pj">●●マンション 新築PJ</span><span class="r-no">No.433</span><span class="sp sp-bef">着工前</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 281万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(85)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○○エル</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.436</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 10万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(86)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○○建設</span><span class="r-pj">●●工事 追加PJ</span><span class="r-no">No.439</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 11万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(87)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○○りホーム</span><span class="r-pj">●●工事 追加PJ</span><span class="r-no">No.440</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 20万</span></div>
+    </div>
+  </div>
+</div>
+<div class="pblock" id="pd">
+  <div class="phead" onclick="toggle('pd')">
+    <div><span class="pname">佐藤</span><span class="pcnt">10件</span><span class="palert palert-o">△ 2件</span></div>
+    <span class="pchev">▼</span>
+  </div>
+  <div class="psum">
+    <div class="pscel"><div class="psl">契約合計</div><div class="psv">2,832万</div></div>
+    <div class="pscel"><div class="psl">請求累計</div><div class="psv">950万</div></div>
+    <div class="pscel"><div class="psl">入金累計</div><div class="psv">964万</div></div>
+    <div class="pscel"><div class="psl">未回収</div><div class="psv ">-141,748円</div></div>
+  </div>
+  <div class="plist">
+    <div class="prow" onclick="openModal(63)">
+      <div class="r1"><div class="adot ad-o"></div><span class="r-gc">○和</span><span class="r-pj">●●工場 新築PJ</span><span class="r-no">No.281</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:0.0%"></div></div><span class="bp bp-s">0.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:0.0%"></div></div><span class="bp bp-w">0.0%</span><span class="uc uc-w">契 398万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(64)">
+      <div class="r1"><div class="adot ad-o"></div><span class="r-gc">○栄</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.290</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:0.0%"></div></div><span class="bp bp-s">0.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-w" style="width:0.0%"></div></div><span class="bp bp-w">0.0%</span><span class="uc uc-w">契 1,155万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(4)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○望</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.366</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(20)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○望</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.266</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:92.9%"></div></div><span class="bp bp-s">92.9%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:92.9%"></div></div><span class="bp bp-n">92.9%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(21)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○望</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.318</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:92.6%"></div></div><span class="bp bp-s">92.6%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:92.6%"></div></div><span class="bp bp-n">92.6%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(23)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○望</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.360</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(41)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○松</span><span class="r-pj">●●ビル 新築PJ</span><span class="r-no">No.94</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(42)">
+      <div class="r1"><div class="adot ad-b"></div><span class="r-gc">○松</span><span class="r-pj">●●ビル 新築PJ</span><span class="r-no">No.141</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"><div class="bf bf-s" style="width:100.0%"></div></div><span class="bp bp-s">100.0%</span><div class="bsep"></div><span class="bl">入</span><div class="bt"><div class="bf bf-n" style="width:100.0%"></div></div><span class="bp bp-n">100.0%</span><span class="uc uc-0">未 0万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(62)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○野</span><span class="r-pj">●●工事PJ</span><span class="r-no">No.252</span><span class="sp sp-bef">着工前</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 253万</span></div>
+    </div>
+    <div class="prow" onclick="openModal(68)">
+      <div class="r1"><div class="adot ad-x"></div><span class="r-gc">○望</span><span class="r-pj">●●工事 新築PJ</span><span class="r-no">No.365</span><span class="sp sp-act">実施中</span></div>
+      <div class="r2"><span class="bl">請</span><div class="bt"></div><span class="bp bp-m">—</span><div class="bsep"></div><span class="bl">入</span><div class="bt"></div><span class="bp bp-m">—</span><span class="uc uc-m">契 25万</span></div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ══ Tab3: 最新月 ══ -->
+<div class="tab-pane" id="t3">
+<div class="body">
+
+<div class="month-hdr">
+  <div>
+    <div class="mh-main">2026/03 実績</div>
+    <div class="mh-sub">最新月 実績サマリー</div>
+  </div>
+  <div class="mh-badge">最新</div>
+</div>
+
+<div class="kpi3">
+  <div class="kpi">
+    <div class="kl">入金件数</div>
+    <div class="kv">6<span class="u">件</span></div>
+    <div class="ks">2026/03</div>
+  </div>
+  <div class="kpi">
+    <div class="kl">請求金額</div>
+    <div class="kv">4,975<span class="u">万</span></div>
+    <div class="ks">前月比 +19%</div>
+  </div>
+  <div class="kpi">
+    <div class="kl">入金率</div>
+    <div class="kv ok">100<span class="u">%</span></div>
+    <div class="ks">入金 4,975万</div>
+  </div>
+</div>
+
+<div class="sec">直近6ヶ月 請求・入金推移</div>
+<div class="trend-wrap">
+  <table class="trend-tbl">
+    <thead>
+      <tr><th>月</th><th>請求（万）</th><th>入金（万）</th><th>入金率</th><th>入金回数</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>2025/10</td><td>7,347</td><td>7,148</td><td class="t-w">97.3%</td><td>32</td></tr>
+      <tr><td>2025/11</td><td>9,201</td><td>9,383</td><td class="t-g">102.0%</td><td>32</td></tr>
+      <tr><td>2025/12</td><td>7,357</td><td>8,394</td><td class="t-g">114.1%</td><td>27</td></tr>
+      <tr><td>2026/01</td><td>15,240</td><td>15,147</td><td class="t-w">99.4%</td><td>26</td></tr>
+      <tr><td>2026/02</td><td>4,177</td><td>4,076</td><td class="t-w">97.6%</td><td>16</td></tr>
+      <tr class="latest"><td>2026/03</td><td>4,975</td><td>4,975</td><td class="t-gold">100%</td><td>6</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="sec">現在の案件ステータス内訳</div>
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-v r">4<span class="u">件</span></div>
+    <div class="stat-l">要確認</div>
+    <div class="stat-s">未回収100万超<br>または完了未請求</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-v o">10<span class="u">件</span></div>
+    <div class="stat-l">注意</div>
+    <div class="stat-s">未回収〜100万<br>または未請求</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-v" style="color:var(--seikyu)">55<span class="u">件</span></div>
+    <div class="stat-l">正常</div>
+    <div class="stat-s">実施中<br>入金一致</div>
+  </div>
+</div>
+<div class="stat-grid" style="margin-top:5px;">
+  <div class="stat-card">
+    <div class="stat-v" style="color:var(--muted)">20<span class="u">件</span></div>
+    <div class="stat-l">未着工</div>
+    <div class="stat-s">受注済み<br>工事待ち</div>
+  </div>
+  <div class="stat-card" style="grid-column:span 2;">
+    <div class="stat-v" style="font-size:14px;color:var(--navy)">合計 89件</div>
+    <div class="stat-l">稼働案件総数</div>
+    <div class="stat-s" style="font-size:9px;color:var(--txt);margin-top:3px;">
+      契約総額 <b style="color:var(--navy)">10.7億</b><br>
+      2025/05〜2026/03 請求累計 <b>7万</b>
+    </div>
+  </div>
+</div>
+
+<div class="sec">直近6ヶ月 入金率トレンド</div>
+<div class="chart-card">
+  <canvas id="chart2" height="110"></canvas>
+</div>
+
+</div>
+</div>
+
+<!-- フッター -->
+<div class="footer">
+  <div class="tagline">動く数字で、判断を作る。</div>
+  <div>※ 社名・担当名はサンプル表示です</div>
+</div>
+
+<!-- ══ 詳細モーダル ══ -->
+<div id="modal-overlay" onclick="closeModal()"></div>
+<div id="modal">
+  <div class="md-handle"></div>
+  <div id="modal-content"></div>
+</div>
+
+<script>
+/* ── データ ── */
+const CASES = [{"tanto": "山田", "gc": "○野", "pj": "●●工事 新築PJ", "bno": "268", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 35000000, "joy_ex": 0, "key_in": 38500000, "joy_in": 0, "seq": 15278997, "nyu": 15279000, "diff": -3, "sp": 39.7, "rate_c": "100.0%", "nyu_cnt": 5, "seq_m": 2837999, "nyu_m": 2838000, "rate_m": "100.0%", "nyu_date": "2026/03/16", "sat_date": "2026/03/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/京都市松ヶ崎計画"}, {"tanto": "鈴木", "gc": "○野", "pj": "●●ビル 追加PJ", "bno": "411", "status": "工事完了", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 3500000, "joy_ex": 0, "key_in": 3850000, "joy_in": 0, "seq": 3850000, "nyu": 3850000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 3850000, "nyu_m": 3850000, "rate_m": "100%", "nyu_date": "2026/03/16", "sat_date": "2026/02/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/京都東山三条NKビル最終追加工事"}, {"tanto": "田中", "gc": "○○住友", "pj": "●●学校 改装PJ", "bno": "98", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 150000000, "joy_ex": 0, "key_in": 165000000, "joy_in": 0, "seq": 122488254, "nyu": 122488256, "diff": -2, "sp": 74.2, "rate_c": "100.0%", "nyu_cnt": 8, "seq_m": 42276970, "nyu_m": 42276970, "rate_m": "100%", "nyu_date": "2026/03/05", "sat_date": "2026/03/25", "joyo": "—", "shimebi": "25", "maps_url": "https://www.google.com/maps/search/京都府立向日が丘支援学校改装工事（主体工"}, {"tanto": "鈴木", "gc": "○○ファ", "pj": "●●マンション 新築PJ", "bno": "250", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 8400000, "joy_ex": 0, "key_in": 9240000, "joy_in": 0, "seq": 3112999, "nyu": 3113000, "diff": -1, "sp": 33.7, "rate_c": "100.0%", "nyu_cnt": 2, "seq_m": 461999, "nyu_m": 462000, "rate_m": "100.0%", "nyu_date": "2026/03/02", "sat_date": "2026/02/28", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/山科区西野岸ノ下町マンション"}, {"tanto": "佐藤", "gc": "○望", "pj": "●●工事 新築PJ", "bno": "366", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 270000, "joy_ex": 0, "key_in": 297000, "joy_in": 0, "seq": 297000, "nyu": 297000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 297000, "nyu_m": 297000, "rate_m": "100%", "nyu_date": "2026/03/02", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/大国町プロジェクト"}, {"tanto": "田中", "gc": "○商", "pj": "●●工事 整備PJ", "bno": "400", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 25000, "joy_ex": 0, "key_in": 27500, "joy_in": 0, "seq": 27500, "nyu": 27500, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 27500, "nyu_m": 27500, "rate_m": "100%", "nyu_date": "2026/03/02", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/事（第3工区）"}, {"tanto": "山田", "gc": "○末", "pj": "●●工事 新築PJ", "bno": "107", "status": "実施中", "alv": "要確認", "alv_color": "#b91c1c", "key_ex": 51000000, "joy_ex": 0, "key_in": 56100000, "joy_in": 0, "seq": 15730000, "nyu": 14236200, "diff": 1493800, "sp": 28.0, "rate_c": "90.5%", "nyu_cnt": 4, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/27", "sat_date": "2026/03/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/京都市右京区西院西貝川町"}, {"tanto": "山田", "gc": "○末", "pj": "●●工事 新築PJ", "bno": "124", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 1930000, "joy_ex": 0, "key_in": 2123000, "joy_in": 0, "seq": 627000, "nyu": 564300, "diff": 62700, "sp": 29.5, "rate_c": "90.0%", "nyu_cnt": 4, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/27", "sat_date": "2026/03/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/京都市右京区西院西貝川町"}, {"tanto": "田中", "gc": "○○ディア", "pj": "●●工事PJ", "bno": "164", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 26000000, "joy_ex": 0, "key_in": 28600000, "joy_in": 0, "seq": 15740998, "nyu": 15741000, "diff": -2, "sp": 55.0, "rate_c": "100.0%", "nyu_cnt": 6, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/27", "sat_date": "2026/02/28", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/阿倍野区松崎町3丁目（賃貸M）計画"}, {"tanto": "山田", "gc": "○○ディア", "pj": "●●工事PJ", "bno": "262", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 58300000, "joy_ex": 0, "key_in": 64130000, "joy_in": 0, "seq": 20567139, "nyu": 20567140, "diff": -1, "sp": 32.1, "rate_c": "100.0%", "nyu_cnt": 2, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/27", "sat_date": "2026/07/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/上賀茂桜井町計画"}, {"tanto": "田中", "gc": "○○ディア", "pj": "●●工事 新築PJ", "bno": "386", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 57644, "joy_ex": 0, "key_in": 63408, "joy_in": 0, "seq": 63408, "nyu": 63408, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/27", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/阿倍野区松崎町3丁目"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●工事 新築PJ", "bno": "66", "status": "実施中", "alv": "要確認", "alv_color": "#b91c1c", "key_ex": 62500000, "joy_ex": 0, "key_in": 68750000, "joy_in": 0, "seq": 64030997, "nyu": 57627900, "diff": 6403097, "sp": 93.1, "rate_c": "90.0%", "nyu_cnt": 13, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/20", "sat_date": "2026/03/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/大阪市中央区南船場1丁目"}, {"tanto": "田中", "gc": "○イズ", "pj": "●●ビルPJ", "bno": "109", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 9000000, "joy_ex": 0, "key_in": 9900000, "joy_in": 0, "seq": 8315998, "nyu": 8316000, "diff": -2, "sp": 84.0, "rate_c": "100.0%", "nyu_cnt": 4, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/20", "sat_date": "2026/03/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/大津市・森田ビルPJ"}, {"tanto": "田中", "gc": "○杉", "pj": "●●工事 整備PJ", "bno": "116", "status": "実施中", "alv": "注意", "alv_color": "#b45309", "key_ex": 5900000, "joy_ex": 0, "key_in": 6490000, "joy_in": 0, "seq": 6489999, "nyu": 6085200, "diff": 404799, "sp": 100.0, "rate_c": "93.8%", "nyu_cnt": 2, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/20", "sat_date": "2026/02/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/絡管第2工区等"}, {"tanto": "鈴木", "gc": "○松", "pj": "●●工事 新築PJ", "bno": "160", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 240000000, "joy_ex": 0, "key_in": 264000000, "joy_in": 0, "seq": 161754998, "nyu": 161755000, "diff": -2, "sp": 61.3, "rate_c": "100.0%", "nyu_cnt": 4, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/20", "sat_date": "2026/03/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/中央卸売市場本場冷蔵庫棟"}, {"tanto": "田中", "gc": "○瀬", "pj": "●●店舗 新築PJ", "bno": "247", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 1240000, "joy_ex": 0, "key_in": 1364000, "joy_in": 0, "seq": 1089000, "nyu": 1089000, "diff": 0, "sp": 79.8, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/20", "sat_date": "2026/02/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/中崎町店舗ビル"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●工事PJ", "bno": "357", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 300000, "joy_ex": 0, "key_in": 330000, "joy_in": 0, "seq": 330000, "nyu": 330000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/20", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/大阪市中央区南船場1丁目計画"}, {"tanto": "田中", "gc": "○ツト", "pj": "●●マンション 外構PJ", "bno": "327", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 400000, "joy_ex": 0, "key_in": 440000, "joy_in": 0, "seq": 440000, "nyu": 440000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/16", "sat_date": "2026/01/15", "joyo": "—", "shimebi": "15", "maps_url": "https://www.google.com/maps/search/塚本プロジェクトマンション計画　外構工事"}, {"tanto": "鈴木", "gc": "○野", "pj": "●●工事PJ", "bno": "383", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 500000, "joy_ex": 0, "key_in": 550000, "joy_in": 0, "seq": 550000, "nyu": 550000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/16", "sat_date": "2026/01/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/護院蓮華蔵町北計画"}, {"tanto": "田中", "gc": "○○建設", "pj": "●●工事PJ", "bno": "361", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 1490000, "joy_ex": 0, "key_in": 1639000, "joy_in": 0, "seq": 693000, "nyu": 693000, "diff": 0, "sp": 42.3, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/02/05", "sat_date": "2026/03/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/長岡京市金ヶ原御所ノ"}, {"tanto": "佐藤", "gc": "○望", "pj": "●●工事 新築PJ", "bno": "266", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 3100000, "joy_ex": 0, "key_in": 3410000, "joy_in": 0, "seq": 3168000, "nyu": 3168000, "diff": 0, "sp": 92.9, "rate_c": "100%", "nyu_cnt": 3, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/30", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/大国町プロジェクト"}, {"tanto": "佐藤", "gc": "○望", "pj": "●●工事 新築PJ", "bno": "318", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 3240000, "joy_ex": 0, "key_in": 3564000, "joy_in": 0, "seq": 3300000, "nyu": 3300000, "diff": 0, "sp": 92.6, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/30", "sat_date": "2025/12/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/遠望建設ﾓﾃﾞﾙHOUSE新築工事"}, {"tanto": "田中", "gc": "○○ディア", "pj": "●●工事 新築PJ", "bno": "348", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 1270000, "joy_ex": 0, "key_in": 1397000, "joy_in": 0, "seq": 1396998, "nyu": 1397000, "diff": -2, "sp": 100.0, "rate_c": "100.0%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/30", "sat_date": "2025/12/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/京都市南区東九条南石田町1A・B"}, {"tanto": "佐藤", "gc": "○望", "pj": "●●工事 新築PJ", "bno": "360", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 363636, "joy_ex": 0, "key_in": 399999, "joy_in": 0, "seq": 400000, "nyu": 400000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/30", "sat_date": "2025/12/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/大国町プロジェクト"}, {"tanto": "田中", "gc": "○○ディア", "pj": "●●工事 新築PJ", "bno": "370", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 86000, "joy_ex": 0, "key_in": 94600, "joy_in": 0, "seq": 94600, "nyu": 94600, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/30", "sat_date": "2025/12/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/阿倍野区松崎町3丁目"}, {"tanto": "田中", "gc": "○ワミ", "pj": "●●工事PJ", "bno": "371", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 1060000, "joy_ex": 0, "key_in": 1166000, "joy_in": 0, "seq": 1166000, "nyu": 1166000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/30", "sat_date": "2025/12/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/老人ホーム"}, {"tanto": "田中", "gc": "○○ファ", "pj": "●●マンション 新築PJ", "bno": "375", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 152000, "joy_ex": 0, "key_in": 167200, "joy_in": 0, "seq": 167200, "nyu": 167200, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/30", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/上京区田中町マンション"}, {"tanto": "鈴木", "gc": "○組", "pj": "●●店舗 新築PJ", "bno": "274", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 1850000, "joy_ex": 0, "key_in": 2035000, "joy_in": 0, "seq": 2034998, "nyu": 2035000, "diff": -2, "sp": 100.0, "rate_c": "100.0%", "nyu_cnt": 2, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/23", "sat_date": "2025/12/25", "joyo": "—", "shimebi": "25", "maps_url": "https://www.google.com/maps/search/㈱シンエー店舗新築工事【再】"}, {"tanto": "鈴木", "gc": "○栄", "pj": "●●工場 新築PJ", "bno": "253", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 1400000, "joy_ex": 0, "key_in": 1540000, "joy_in": 0, "seq": 1540000, "nyu": 1540000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/20", "sat_date": "2025/12/15", "joyo": "—", "shimebi": "15", "maps_url": "https://www.google.com/maps/search/平和金属株式会社　工場新築工事"}, {"tanto": "田中", "gc": "○杉", "pj": "●●工事 整備PJ", "bno": "321", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 57644, "joy_ex": 0, "key_in": 63408, "joy_in": 0, "seq": 63408, "nyu": 63408, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/20", "sat_date": "2026/01/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/絡管第2工区等"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●工事 新築PJ", "bno": "343", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 191000, "joy_ex": 0, "key_in": 210100, "joy_in": 0, "seq": 210100, "nyu": 189090, "diff": 21010, "sp": 100.0, "rate_c": "90.0%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/20", "sat_date": "2025/12/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/ドーミー尼崎杭瀬計画新築工事　タワークレ"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●工事PJ", "bno": "344", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 950000, "joy_ex": 0, "key_in": 1045000, "joy_in": 0, "seq": 1045000, "nyu": 1045000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/20", "sat_date": "2025/12/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/大阪市中央区南船場1丁目計画"}, {"tanto": "田中", "gc": "○高", "pj": "●●工場PJ", "bno": "209", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 6200000, "joy_ex": 0, "key_in": 6820000, "joy_in": 0, "seq": 6742999, "nyu": 6681400, "diff": 61599, "sp": 98.9, "rate_c": "99.1%", "nyu_cnt": 5, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/15", "sat_date": "2026/01/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/敷島製パン株式会社　奈良工場排水処理設備"}, {"tanto": "鈴木", "gc": "○野", "pj": "●●工事PJ", "bno": "301", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 1100000, "joy_ex": 0, "key_in": 1210000, "joy_in": 0, "seq": 1210000, "nyu": 1210000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/15", "sat_date": "2025/12/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/護院蓮華蔵町北計画"}, {"tanto": "鈴木", "gc": "○栄", "pj": "●●工事PJ", "bno": "326", "status": "実施中", "alv": "注意", "alv_color": "#b45309", "key_ex": 750000, "joy_ex": 0, "key_in": 825000, "joy_in": 0, "seq": 968000, "nyu": 825000, "diff": 143000, "sp": 117.3, "rate_c": "85.2%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2026/01/10", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/此花区梅香1丁目"}, {"tanto": "田中", "gc": "○工業", "pj": "●●工事 新築PJ", "bno": "317", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 1636364, "joy_ex": 0, "key_in": 1800000, "joy_in": 0, "seq": 1200000, "nyu": 1200000, "diff": 0, "sp": 66.7, "rate_c": "100%", "nyu_cnt": 2, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/30", "sat_date": "2025/12/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/ほっかほっか亭　内環平野店新築工事"}, {"tanto": "田中", "gc": "○○りホーム", "pj": "●●工事PJ", "bno": "244", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 5170000, "joy_ex": 0, "key_in": 5687000, "joy_in": 0, "seq": 4777300, "nyu": 4777300, "diff": 0, "sp": 84.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/29", "sat_date": "2025/12/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/吹田市岸部北3丁目計画"}, {"tanto": "鈴木", "gc": "○○ファ", "pj": "●●マンション 新築PJ", "bno": "140", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 16000000, "joy_ex": 0, "key_in": 17600000, "joy_in": 0, "seq": 17599995, "nyu": 17600000, "diff": -5, "sp": 100.0, "rate_c": "100.0%", "nyu_cnt": 6, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/26", "sat_date": "2025/12/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/上京区田中町マンション"}, {"tanto": "田中", "gc": "○商", "pj": "●●工事 整備PJ", "bno": "193", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 800000, "joy_ex": 0, "key_in": 880000, "joy_in": 0, "seq": 396000, "nyu": 396000, "diff": 0, "sp": 45.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/26", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/事（第3工区）"}, {"tanto": "田中", "gc": "○ワミ", "pj": "●●工事 新築PJ", "bno": "316", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 887000, "joy_ex": 0, "key_in": 975700, "joy_in": 0, "seq": 975700, "nyu": 975700, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/25", "sat_date": "2025/10/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/曽山様邸新築工事"}, {"tanto": "田中", "gc": "○ワミ", "pj": "●●工事PJ", "bno": "335", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 529000, "joy_ex": 0, "key_in": 581900, "joy_in": 0, "seq": 581900, "nyu": 581900, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/25", "sat_date": "2025/11/30", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/曽山様邸②工事"}, {"tanto": "佐藤", "gc": "○松", "pj": "●●ビル 新築PJ", "bno": "94", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 2000000, "joy_ex": 0, "key_in": 2200000, "joy_in": 0, "seq": 2199998, "nyu": 2200001, "diff": -3, "sp": 100.0, "rate_c": "100.0%", "nyu_cnt": 9, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/22", "sat_date": "2025/12/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/JR難波・酒井精工株式会社ビル新築工事"}, {"tanto": "佐藤", "gc": "○松", "pj": "●●ビル 新築PJ", "bno": "141", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 128859, "joy_ex": 0, "key_in": 141744, "joy_in": 0, "seq": 141745, "nyu": 283490, "diff": -141745, "sp": 100.0, "rate_c": "200%", "nyu_cnt": 2, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/22", "sat_date": "2025/12/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/JR難波・酒井精工株式会社ビル新築工事　"}, {"tanto": "田中", "gc": "○杉", "pj": "●●施設 整備PJ", "bno": "156", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 1980000, "joy_ex": 0, "key_in": 2178000, "joy_in": 0, "seq": 2177999, "nyu": 2178000, "diff": -1, "sp": 100.0, "rate_c": "100.0%", "nyu_cnt": 3, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/22", "sat_date": "2025/12/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/社会福祉法人ふきのとう障害者複合施設整備"}, {"tanto": "鈴木", "gc": "○和", "pj": "●●工事PJ", "bno": "103", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 42320000, "joy_ex": 0, "key_in": 46552000, "joy_in": 0, "seq": 46551999, "nyu": 46552000, "diff": -1, "sp": 100.0, "rate_c": "100.0%", "nyu_cnt": 10, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/20", "sat_date": "2025/11/30", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/プロロジスパーク豊中プロジェクト"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●工事 新築PJ", "bno": "15", "status": "実施中", "alv": "注意", "alv_color": "#b45309", "key_ex": 29800000, "joy_ex": 0, "key_in": 32780000, "joy_in": 0, "seq": 32779997, "nyu": 32615000, "diff": 164997, "sp": 100.0, "rate_c": "99.5%", "nyu_cnt": 12, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/19", "sat_date": "2025/12/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/城東区東中浜1丁目"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●工事 新築PJ", "bno": "65", "status": "実施中", "alv": "要確認", "alv_color": "#b91c1c", "key_ex": 18200000, "joy_ex": 0, "key_in": 20020000, "joy_in": 0, "seq": 20019996, "nyu": 18370000, "diff": 1649996, "sp": 100.0, "rate_c": "91.8%", "nyu_cnt": 10, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/19", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/兵庫区下沢通2丁目"}, {"tanto": "山田", "gc": "○野", "pj": "●●工事 新築PJ", "bno": "297", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 53700, "joy_ex": 0, "key_in": 59070, "joy_in": 0, "seq": 59070, "nyu": 55000, "diff": 4070, "sp": 100.0, "rate_c": "93.1%", "nyu_cnt": 2, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/15", "sat_date": "2025/11/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/京都市松ケ崎計画"}, {"tanto": "鈴木", "gc": "○栄", "pj": "●●工事PJ", "bno": "16", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 38180000, "joy_ex": 0, "key_in": 41998000, "joy_in": 0, "seq": 41998657, "nyu": 41998000, "diff": 657, "sp": 100.0, "rate_c": "100.0%", "nyu_cnt": 12, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/12/10", "sat_date": "2025/10/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/此花区梅香1丁目"}, {"tanto": "山田", "gc": "○末", "pj": "●●ビル 追加PJ", "bno": "282", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 224000, "joy_ex": 0, "key_in": 246400, "joy_in": 0, "seq": 246400, "nyu": 246400, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/28", "sat_date": "2025/11/30", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/茶屋町TATSUMIビル立替"}, {"tanto": "田中", "gc": "○阪", "pj": "●●工場 新築PJ", "bno": "108", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 4800000, "joy_ex": 0, "key_in": 5280000, "joy_in": 0, "seq": 5279998, "nyu": 5279998, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 4, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/21", "sat_date": "2025/10/15", "joyo": "—", "shimebi": "15", "maps_url": "https://www.google.com/maps/search/サクラクレパス大阪工場　付帯施設新築工事"}, {"tanto": "田中", "gc": "○阪", "pj": "●●工場 追加PJ", "bno": "272", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 940000, "joy_ex": 0, "key_in": 1034000, "joy_in": 0, "seq": 1034000, "nyu": 1034000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 2, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/21", "sat_date": "2025/10/15", "joyo": "—", "shimebi": "15", "maps_url": "https://www.google.com/maps/search/サクラクレパス大阪工場　追加工事"}, {"tanto": "田中", "gc": "○阪", "pj": "●●工事PJ", "bno": "289", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 100000, "joy_ex": 0, "key_in": 110000, "joy_in": 0, "seq": 110000, "nyu": 110000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/21", "sat_date": "2025/11/15", "joyo": "—", "shimebi": "15", "maps_url": "https://www.google.com/maps/search/堺現場応援"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●ホテル 新築PJ", "bno": "18", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 33500000, "joy_ex": 0, "key_in": 36850000, "joy_in": 0, "seq": 36848895, "nyu": 36850000, "diff": -1105, "sp": 100.0, "rate_c": "100.0%", "nyu_cnt": 13, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/20", "sat_date": "2025/11/30", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/大阪市浪速区日本橋4丁目ホテル"}, {"tanto": "田中", "gc": "○イズ", "pj": "●●工事 増改築PJ", "bno": "228", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 2980000, "joy_ex": 0, "key_in": 3278000, "joy_in": 0, "seq": 3277998, "nyu": 3278000, "diff": -2, "sp": 100.0, "rate_c": "100.0%", "nyu_cnt": 3, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/20", "sat_date": "2025/11/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/帝塚山1丁目平田様邸増改築工事"}, {"tanto": "田中", "gc": "○杉", "pj": "●●倉庫 新築PJ", "bno": "270", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 390000, "joy_ex": 0, "key_in": 429000, "joy_in": 0, "seq": 429000, "nyu": 429000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/20", "sat_date": "2025/11/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/天理市・親和ロジネット倉庫"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●ホテル 新築PJ", "bno": "275", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 770000, "joy_ex": 0, "key_in": 847000, "joy_in": 0, "seq": 847000, "nyu": 825000, "diff": 22000, "sp": 100.0, "rate_c": "97.4%", "nyu_cnt": 2, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/20", "sat_date": "2025/10/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/大阪市浪速区日本橋4丁目ホテル"}, {"tanto": "田中", "gc": "○イズ", "pj": "●●工事 増改築PJ", "bno": "304", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 141000, "joy_ex": 0, "key_in": 155100, "joy_in": 0, "seq": 155100, "nyu": 155100, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/20", "sat_date": "2025/11/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/帝塚山1丁目平田様邸　増改築工事"}, {"tanto": "田中", "gc": "○ツト", "pj": "●●マンション 新築PJ", "bno": "13", "status": "実施中", "alv": "注意", "alv_color": "#b45309", "key_ex": 20000000, "joy_ex": 0, "key_in": 22000000, "joy_in": 0, "seq": 22009373, "nyu": 21738200, "diff": 271173, "sp": 100.0, "rate_c": "98.8%", "nyu_cnt": 14, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/17", "sat_date": "2025/11/15", "joyo": "—", "shimebi": "15", "maps_url": "https://www.google.com/maps/search/塚本プロジェクト　マンション新築工事"}, {"tanto": "田中", "gc": "○ワミ", "pj": "●●共同住宅PJ", "bno": "306", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 681861, "joy_ex": 0, "key_in": 750047, "joy_in": 0, "seq": 750047, "nyu": 750047, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/17", "sat_date": "2025/10/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/東成区中道共同住宅"}, {"tanto": "田中", "gc": "○高", "pj": "●●工場PJ", "bno": "310", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 100000, "joy_ex": 0, "key_in": 110000, "joy_in": 0, "seq": 110000, "nyu": 110000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 1, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/17", "sat_date": "2025/11/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/敷島製パン㈱奈良工場排水設備更新工事"}, {"tanto": "山田", "gc": "○栄", "pj": "●●工事PJ", "bno": "25", "status": "実施中", "alv": "正常", "alv_color": "#1d4ed8", "key_ex": 12000000, "joy_ex": 0, "key_in": 13200000, "joy_in": 0, "seq": 13200000, "nyu": 13200000, "diff": 0, "sp": 100.0, "rate_c": "100%", "nyu_cnt": 8, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "2025/11/10", "sat_date": "2025/10/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/摂津市正雀本町一丁目計画"}, {"tanto": "佐藤", "gc": "○野", "pj": "●●工事PJ", "bno": "252", "status": "着工前", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 2300000, "joy_ex": 0, "key_in": 2530000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "未請求", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/鳥羽水環境保全センター汚泥焼却炉建設事業"}, {"tanto": "佐藤", "gc": "○和", "pj": "●●工場 新築PJ", "bno": "281", "status": "実施中", "alv": "注意", "alv_color": "#b45309", "key_ex": 3620000, "joy_ex": 0, "key_in": 3982000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/03/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/株式会社栃本天海堂+福知山工場+加工棟新"}, {"tanto": "佐藤", "gc": "○栄", "pj": "●●工事 新築PJ", "bno": "290", "status": "実施中", "alv": "注意", "alv_color": "#b45309", "key_ex": 10500000, "joy_ex": 0, "key_in": 11550000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/03/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/あべの松崎町"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●工事 新築PJ", "bno": "320", "status": "実施中", "alv": "注意", "alv_color": "#b45309", "key_ex": 19400000, "joy_ex": 0, "key_in": 21340000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/03/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/ドーミー尼崎杭瀬計画新築工事"}, {"tanto": "田中", "gc": "○○りホーム", "pj": "●●工事 新築PJ", "bno": "351", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 1660000, "joy_ex": 0, "key_in": 1826000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/02/28", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/吹田市岸部北3丁目計画"}, {"tanto": "田中", "gc": "○工業", "pj": "●●共同住宅 新築PJ", "bno": "364", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 909091, "joy_ex": 0, "key_in": 1000000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/02/28", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/茨木市春日1丁目共同住宅"}, {"tanto": "佐藤", "gc": "○望", "pj": "●●工事 新築PJ", "bno": "365", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 230000, "joy_ex": 0, "key_in": 253000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/02/28", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/遠望建設ﾓﾃﾞﾙHOUSE新築工事"}, {"tanto": "田中", "gc": "○○ひろ", "pj": "●●工事PJ", "bno": "379", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 179428, "joy_ex": 0, "key_in": 197370, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/株式会社クボタ"}, {"tanto": "田中", "gc": "○○ひろ", "pj": "●●工事PJ", "bno": "390", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 108546, "joy_ex": 0, "key_in": 119400, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/日立インダストリアルプロダクツ"}, {"tanto": "田中", "gc": "○ワミ", "pj": "●●工事 新築PJ", "bno": "391", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 1506000, "joy_ex": 0, "key_in": 1656600, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/01/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/高取様・安田4丁目A号・湧様・㈱ＯＢＡＬ"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●工事 新築PJ", "bno": "392", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 97709, "joy_ex": 0, "key_in": 107479, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/02/28", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/ドーミー尼崎杭瀬計画新築工事"}, {"tanto": "田中", "gc": "○阪", "pj": "●●工事 追加PJ", "bno": "396", "status": "実施中", "alv": "注意", "alv_color": "#b45309", "key_ex": 3660000, "joy_ex": 0, "key_in": 4026000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/03/15", "joyo": "—", "shimebi": "15", "maps_url": "https://www.google.com/maps/search/日本イーライリリー㈱トラック専用Ｇａｔｅ"}, {"tanto": "田中", "gc": "○ワミ", "pj": "●●工事PJ", "bno": "401", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 194000, "joy_ex": 0, "key_in": 213400, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/02/28", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/新庄3丁目18号地"}, {"tanto": "田中", "gc": "○都", "pj": "●●工事 新築PJ", "bno": "403", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 184921, "joy_ex": 0, "key_in": 203413, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/02/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/西賀茂新築工事"}, {"tanto": "田中", "gc": "○高", "pj": "●●工場PJ", "bno": "405", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 700000, "joy_ex": 0, "key_in": 770000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/02/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/敷島製パン㈱奈良工場　排水処理設備更新工"}, {"tanto": "田中", "gc": "○ワミ", "pj": "●●工事PJ", "bno": "406", "status": "実施中", "alv": "注意", "alv_color": "#b45309", "key_ex": 2284437, "joy_ex": 0, "key_in": 2512880, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/02/28", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/2026　2月加工分"}, {"tanto": "鈴木", "gc": "○和", "pj": "●●工事 追加PJ", "bno": "412", "status": "工事完了", "alv": "要確認", "alv_color": "#b91c1c", "key_ex": 2800000, "joy_ex": 0, "key_in": 3080000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/02/28", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/プロロジスパーク豊中　追加工事"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●工事 新築PJ", "bno": "416", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 57600, "joy_ex": 0, "key_in": 63360, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/02/28", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/兵庫区下沢通2丁目"}, {"tanto": "田中", "gc": "○○ディア", "pj": "●●工事PJ", "bno": "420", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 57644, "joy_ex": 0, "key_in": 63408, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/02/28", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/阿倍野区松崎町3丁目計画"}, {"tanto": "田中", "gc": "○杉", "pj": "●●工事 整備PJ", "bno": "429", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 80000, "joy_ex": 0, "key_in": 88000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/03/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/絡管第2工区等"}, {"tanto": "田中", "gc": "○杉", "pj": "●●工事 整備PJ", "bno": "431", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 900000, "joy_ex": 0, "key_in": 990000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/03/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/絡管第2工区"}, {"tanto": "田中", "gc": "○○建設", "pj": "●●マンション 新築PJ", "bno": "432", "status": "実施中", "alv": "注意", "alv_color": "#b45309", "key_ex": 2200000, "joy_ex": 0, "key_in": 2420000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/03/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/天満橋マンション新築工事"}, {"tanto": "田中", "gc": "○○建設", "pj": "●●マンション 新築PJ", "bno": "433", "status": "着工前", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 2557000, "joy_ex": 0, "key_in": 2812700, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "未請求", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/天満橋マンション新築工事"}, {"tanto": "田中", "gc": "○○エル", "pj": "●●工事 新築PJ", "bno": "436", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 91000, "joy_ex": 0, "key_in": 100100, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/03/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/ドーミー尼崎杭瀬計画新築工事　駐車ゲート"}, {"tanto": "田中", "gc": "○○建設", "pj": "●●工事 追加PJ", "bno": "439", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 104000, "joy_ex": 0, "key_in": 114400, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/03/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/長岡京市金ヶ原御所ノ"}, {"tanto": "田中", "gc": "○○りホーム", "pj": "●●工事 追加PJ", "bno": "440", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 184000, "joy_ex": 0, "key_in": 202400, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/03/31", "joyo": "—", "shimebi": "末日", "maps_url": "https://www.google.com/maps/search/吹田市岸部北3丁目計画"}, {"tanto": "山田", "gc": "○野", "pj": "●●工事 新築PJ", "bno": "441", "status": "実施中", "alv": "未着工", "alv_color": "#7080a4", "key_ex": 700000, "joy_ex": 0, "key_in": 770000, "joy_in": 0, "seq": 0, "nyu": 0, "diff": 0, "sp": 0.0, "rate_c": "—", "nyu_cnt": 0, "seq_m": 0, "nyu_m": 0, "rate_m": "—", "nyu_date": "—", "sat_date": "2026/03/20", "joyo": "—", "shimebi": "20", "maps_url": "https://www.google.com/maps/search/京都市松ケ崎計画"}];
+
+/* ── 数値フォーマット ── */
+function yenFmt(v) {
+  v = Math.round(v);
+  if (v >= 100000000) return (v/100000000).toFixed(1) + '億';
+  if (v >= 10000) return Math.floor(v/10000).toLocaleString() + '万';
+  return v.toLocaleString() + '円';
+}
+function yenFull(v) {
+  v = Math.round(v);
+  if (v === 0) return '—';
+  return '¥' + v.toLocaleString();
+}
+
+/* ── タブ・アコーディオン ── */
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('act'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('act'));
+  document.getElementById(id).classList.add('act');
+  btn.classList.add('act');
+}
+function toggle(id) { document.getElementById(id).classList.toggle('open'); }
+
+/* ── モーダル ── */
+function openModal(idx) {
+  const d = CASES[idx];
+  if (!d) return;
+
+  const spPct  = Math.min(d.sp, 100);
+  const nyuPct = d.key_in > 0 ? Math.min(d.nyu / d.key_in * 100, 100) : 0;
+  const diffV  = d.seq - d.nyu;
+
+  const stCls = (d.status === '工事完了') ? 'done' : '';
+  const stLbl = d.status;
+
+  const diffColor = diffV > 1000000 ? 'var(--alert)' : diffV > 100000 ? 'var(--warn)' : 'var(--muted)';
+  const spBarColor = diffV > 100000 ? 'var(--seikyu)' : 'var(--seikyu)';
+  const nyuBarColor = diffV > 100000 ? 'var(--alert)' : diffV > 0 ? 'var(--warn)' : 'var(--nyukin)';
+
+  // 最新月セクション (データがある場合のみ)
+  const hasMonthly = d.seq_m > 0 || d.nyu_m > 0;
+  const monthlyHtml = hasMonthly ? `
+    <div class="md-sec">最新月実績</div>
+    <div class="md-grid">
+      <div class="md-cell">
+        <div class="md-cl">最新月請求</div>
+        <div class="md-cv sm">${yenFull(d.seq_m)}</div>
+      </div>
+      <div class="md-cell">
+        <div class="md-cl">最新月入金</div>
+        <div class="md-cv sm">${yenFull(d.nyu_m)}</div>
+      </div>
+      <div class="md-cell">
+        <div class="md-cl">単月入金率</div>
+        <div class="md-cv">${d.rate_m}</div>
+      </div>
+    </div>` : '';
+
+  document.getElementById('modal-content').innerHTML = `
+    <div class="md-hdr">
+      <div>
+        <div class="md-hdr-row">
+          <div class="md-badges">
+            <span class="md-badge-alv" style="background:${d.alv_color};color:#fff;">${d.alv}</span>
+            <span class="md-badge-st ${stCls}">${stLbl}</span>
+            <span class="md-badge-gc">${d.gc}</span>
+            <span class="md-badge-who">${d.tanto}</span>
+          </div>
+          <button class="md-close" onclick="closeModal()">✕</button>
+        </div>
+      </div>
+    </div>
+    <div class="md-title">${d.pj}</div>
+    <div class="md-no">予算書 No.${d.bno}</div>
+
+    <div class="md-body">
+
+      <div class="md-sec">契約金額</div>
+      <div class="md-grid">
+        <div class="md-cell">
+          <div class="md-cl">契約額（税込）</div>
+          <div class="md-cv sm">${yenFull(d.key_in)}</div>
+        </div>
+        <div class="md-cell">
+          <div class="md-cl">常傭（税込）</div>
+          <div class="md-cv sm ${d.joy_in>0?'':'m'}">${d.joy_in>0 ? yenFull(d.joy_in) : '—'}</div>
+        </div>
+        <div class="md-cell">
+          <div class="md-cl">契約額（税抜）</div>
+          <div class="md-cv sm">${yenFull(d.key_ex)}</div>
+        </div>
+      </div>
+
+      <div class="md-sec">請求 / 入金 進捗</div>
+      <div class="md-bar-wrap">
+        <div class="md-bar-row">
+          <span class="md-bar-lbl">請求</span>
+          <div class="md-bar-bg"><div class="md-bar-fill" style="width:${spPct.toFixed(1)}%;background:var(--seikyu);"></div></div>
+          <span class="md-bar-pct" style="color:var(--seikyu)">${spPct.toFixed(1)}%</span>
+        </div>
+        <div class="md-bar-row">
+          <span class="md-bar-lbl">入金</span>
+          <div class="md-bar-bg"><div class="md-bar-fill" style="width:${nyuPct.toFixed(1)}%;background:${nyuBarColor};"></div></div>
+          <span class="md-bar-pct" style="color:${nyuBarColor}">${nyuPct.toFixed(1)}%</span>
+        </div>
+      </div>
+
+      <div class="md-sec">累計 請求・入金</div>
+      <div class="md-grid">
+        <div class="md-cell">
+          <div class="md-cl">請求累計</div>
+          <div class="md-cv sm">${yenFull(d.seq)}</div>
+        </div>
+        <div class="md-cell">
+          <div class="md-cl">入金累計</div>
+          <div class="md-cv sm">${yenFull(d.nyu)}</div>
+        </div>
+        <div class="md-cell">
+          <div class="md-cl">未回収</div>
+          <div class="md-cv sm" style="color:${diffColor}">${diffV>0 ? yenFull(diffV) : '—'}</div>
+        </div>
+        <div class="md-cell">
+          <div class="md-cl">累計入金率</div>
+          <div class="md-cv">${d.rate_c}</div>
+        </div>
+        <div class="md-cell">
+          <div class="md-cl">入金回数</div>
+          <div class="md-cv">${d.nyu_cnt}<span style="font-size:9px;font-weight:400;">回</span></div>
+        </div>
+        <div class="md-cell">
+          <div class="md-cl">締日</div>
+          <div class="md-cv sm">${d.shimebi}</div>
+        </div>
+      </div>
+
+      ${monthlyHtml}
+
+      <div class="md-sec">管理情報</div>
+      <div class="md-info-grid">
+        <div class="md-info-row">
+          <span class="md-il">常用有無</span>
+          <span class="md-iv">${d.joyo}</span>
+        </div>
+        <div class="md-info-row">
+          <span class="md-il">期間内入金日</span>
+          <span class="md-iv">${d.nyu_date}</span>
+        </div>
+        <div class="md-info-row" style="grid-column:span 2;">
+          <span class="md-il">最終査定日</span>
+          <span class="md-iv">${d.sat_date}</span>
+        </div>
+      </div>
+
+      <a class="md-map-btn" href="${d.maps_url}" target="_blank" rel="noopener">
+        <span class="md-map-icon">📍</span> Google マップで現場を確認
+      </a>
+
+    </div>`;
+
+  document.getElementById('modal').classList.add('open');
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('modal').scrollTop = 0;
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+// スワイプで閉じる
+let touchY = 0;
+document.getElementById('modal').addEventListener('touchstart', e => { touchY = e.touches[0].clientY; }, {passive:true});
+document.getElementById('modal').addEventListener('touchmove', e => {
+  if (document.getElementById('modal').scrollTop === 0 && e.touches[0].clientY - touchY > 60) closeModal();
+}, {passive:true});
+
+/* ── メインチャート ── */
+const months = ['05月', '06月', '07月', '08月', '09月', '10月', '11月', '12月', '01月', '02月', '03月'];
+const seikyu = [4961, 6998, 4583, 4671, 5824, 7347, 9201, 7357, 15240, 4177, 4975];
+const nyukin = [5049, 6373, 4390, 4563, 6086, 7148, 9383, 8394, 15147, 4076, 4975];
+const rate   = [101.8, 91.1, 95.8, 97.7, 104.5, 97.3, 102.0, 114.1, 99.4, 97.6, 100];
+
+new Chart(document.getElementById('chart').getContext('2d'), {
+  data: {
+    labels: months,
+    datasets: [
+      { type:'bar', label:'請求（万円）', data:seikyu,
+         backgroundColor:'rgba(29,78,216,.7)', borderRadius:2, barPercentage:.7, order:2 },
+      { type:'bar', label:'入金（万円）', data:nyukin,
+         backgroundColor:'rgba(21,128,61,.7)', borderRadius:2, barPercentage:.7, order:2 },
+      { type:'line', label:'入金率（%）', data:rate,
+         borderColor:'#f0b429', backgroundColor:'rgba(240,180,41,.12)',
+         pointRadius:3, pointBackgroundColor:'#f0b429', borderWidth:2,
+         yAxisID:'y2', order:1, tension:0.3, fill:true }
+    ]
+  },
+  options: {
+    responsive:true, interaction:{mode:'index'},
+    plugins:{
+      legend:{labels:{color:'#7080a4',font:{size:9},boxWidth:9,padding:8}},
+      tooltip:{callbacks:{
+        label: c => c.dataset.yAxisID==='y2'
+          ? ' '+c.dataset.label+': '+c.parsed.y.toFixed(1)+'%'
+          : ' '+c.dataset.label+': '+c.parsed.y.toLocaleString()+'万'
+      }}
+    },
+    scales:{
+      x:{ticks:{color:'#7080a4',font:{size:8}},grid:{color:'#e8edf5'}},
+      y:{ticks:{color:'#7080a4',font:{size:8},
+          callback:v=>v>=10000?(v/10000).toFixed(1)+'億':v.toLocaleString()},
+        grid:{color:'#e8edf5'}},
+      y2:{position:'right', min:82, max:120,
+        ticks:{color:'#d4a017',font:{size:8},callback:v=>v+'%'},
+        grid:{display:false}}
+    }
+  }
+});
+
+/* ── ミニチャート ── */
+new Chart(document.getElementById('chart2').getContext('2d'), {
+  type:'line',
+  data:{
+    labels:['10月', '11月', '12月', '01月', '02月', '03月'],
+    datasets:[
+      { label:'入金率%', data:[97.3, 102.0, 114.1, 99.4, 97.6, 100],
+         borderColor:'#f0b429', backgroundColor:'rgba(240,180,41,.15)',
+         pointRadius:4, pointBackgroundColor:'#f0b429', borderWidth:2,
+         fill:true, tension:0.3 },
+      { label:'請求（万）', data:[7347, 9201, 7357, 15240, 4177, 4975],
+         borderColor:'rgba(29,78,216,.6)', backgroundColor:'transparent',
+         pointRadius:3, borderWidth:1.5, yAxisID:'y2', tension:0.3 }
+    ]
+  },
+  options:{
+    responsive:true,
+    plugins:{legend:{labels:{color:'#7080a4',font:{size:9},boxWidth:9,padding:8}}},
+    scales:{
+      x:{ticks:{color:'#7080a4',font:{size:8}},grid:{color:'#e8edf5'}},
+      y:{min:85,max:120,ticks:{color:'#d4a017',font:{size:8},callback:v=>v+'%'},
+        grid:{color:'#e8edf5'}},
+      y2:{position:'right',ticks:{color:'#7080a4',font:{size:8},
+          callback:v=>v>=10000?(v/10000).toFixed(1)+'億':v.toLocaleString()+'万'},
+        grid:{display:false}}
+    }
+  }
+});
+</script>
+</body>
+</html>
